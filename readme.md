@@ -1,5 +1,5 @@
 # Atomistic Reverse Monte-Carlo 
-``rMC`` is a python package which allows generating bulk crystal structures wiht target Warren-Cowley parameters. 
+``rMC`` is a python package which allows generating bulk crystal structures with target Warren-Cowley parameters. 
 
 ## Installation 
 You can install rMC through PyPy using:
