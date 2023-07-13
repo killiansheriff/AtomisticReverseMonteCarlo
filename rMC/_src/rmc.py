@@ -10,7 +10,10 @@ from ovito.pipeline import Pipeline, StaticSource
 
 
 class rMC:
-    def __init__(self, target_wc):
+    def __init__(self):
+        print("Let's do some rMC!")
+
+    def set_target_wc(self, target_wc):
         self.target_wc = target_wc
 
     def set_data_from_dump(self, dump_file):
@@ -161,6 +164,10 @@ class rMC:
         )
 
     def run(self, nneigh, T, tol_percent_diff, save_file_name):
+        assert self.data is not None
+        assert self.target_wc is not None
+        assert self.pipeline is not None
+
         # Getting some atom types related properties
         atom_types = self.data.particles["Particle Type"] - 1  # reindxing to atom type 0
         self.ncomponent = len(np.unique(atom_types))

@@ -3,16 +3,16 @@ import numpy as np
 from rMC import rMC
 
 if __name__ == "__main__":
-    rmc = rMC(
-        target_wc=np.load(
-            "/home/ksheriff/PAPERS/first_paper/03_mtp/data/eca_id_temperature/300K/wc_3x3.npy"
-        ),
-    )
+    rmc = rMC()
 
+    # Set rMC target
+    rmc.set_target_wc(
+        np.load("/home/ksheriff/PAPERS/first_paper/03_mtp/data/eca_id_temperature/300K/wc_3x3.npy")
+    )
     # Set data from dump
     rmc.set_data_from_dump("fcc_random.dump")
 
-    # Set data from ASE
+    # Alternatively can also create intial config from ase
     data = rmc.set_data_from_ase(
         crystal_structure="fcc",
         dimension=(10, 10, 10),
