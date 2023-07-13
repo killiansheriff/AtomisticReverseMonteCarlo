@@ -63,7 +63,9 @@ class rMC:
         return i1, i2
 
     def get_NN(self, nneigh):
-        finder = NearestNeighborFinder(nneigh, self.data)  # Computes atom neighbor lists.
+        finder = NearestNeighborFinder(
+            nneigh, self.data
+        )  # Computes atom neighbor lists.
         neigh_index_list = finder.find_all()[0]  # for each atom its list of neight
         return neigh_index_list
 
@@ -148,7 +150,9 @@ class rMC:
         data.particles_.create_property("Particle Type", data=new_atom_types)
 
     def save_ovito_snapshot(self, new_atom_types, save_file_name):
-        self.pipeline.modifiers.append(partial(self.modify, new_atom_types=new_atom_types))
+        self.pipeline.modifiers.append(
+            partial(self.modify, new_atom_types=new_atom_types)
+        )
         cols = [
             "Particle Identifier",
             "Particle Type",
@@ -169,7 +173,9 @@ class rMC:
         assert self.pipeline is not None
 
         # Getting some atom types related properties
-        atom_types = self.data.particles["Particle Type"] - 1  # reindxing to atom type 0
+        atom_types = (
+            self.data.particles["Particle Type"] - 1
+        )  # reindxing to atom type 0
         self.ncomponent = len(np.unique(atom_types))
         self.natoms = len(atom_types)
 
@@ -236,4 +242,6 @@ class rMC:
         print(f"Percent error {percent_diff}")
         print("\n")
 
-        self.save_ovito_snapshot(new_atom_types=atom_types, save_file_name=save_file_name)
+        self.save_ovito_snapshot(
+            new_atom_types=atom_types, save_file_name=save_file_name
+        )
