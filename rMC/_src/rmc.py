@@ -74,7 +74,7 @@ class rMC:
         atom_counts = np.bincount(atom_types)
         c = atom_counts / self.natoms
         self.c = c
-        self.atom_counts=atom_counts
+        self.atom_counts = atom_counts
 
         pairs = list(product(range(self.ncomponent), repeat=2))
         self.pairs = pairs
@@ -97,8 +97,7 @@ class rMC:
             alpha[a, b] = 1 - 1 / c[a] * sum_f / atom_counts[b]
         return alpha, f
 
-    def update_wc(self, i1, i2, new_atom_types, atom_types, f):
-        new_f = deepcopy(f)
+    def update_wc(self, i1, i2, new_atom_types, atom_types, new_f):
         Nb = 12  # Define Nb as a constant variable
 
         # Get the neighborhood indices for i1 and i2
@@ -134,6 +133,7 @@ class rMC:
         for pair in self.pairs:
             a, b = pair
             new_wc[a, b] = 1 - 1 / c[a] * new_f[a, b] / atom_counts[b]
+
         return new_wc, new_f
         # # we remove contributions from non swap center atom, add contributions from the new one:
         # for index in [i1, i2]:
@@ -207,9 +207,8 @@ class rMC:
             new_atom_types = deepcopy(atom_types)
 
             new_atom_types[i1], new_atom_types[i2] = atom_types[i2], atom_types[i1]
-            new_wc, new_f = self.update_wc(
-                i1, i2, new_atom_types, atom_types, f
-            )  
+
+            new_wc, new_f = self.update_wc(i1, i2, new_atom_types, atom_types, deepcopy(f))
             # new_wc, new_f = self.get_wc(new_atom_types)
             new_wc_energy = np.sum((self.target_wc - new_wc) ** 2)
 
@@ -231,7 +230,7 @@ class rMC:
 
                 percent_diff = np.abs((wc - self.target_wc) / self.target_wc) * 100
 
-            if i % 10000 == 0:
+            if i % 1000 == 0:
                 print(f"Frac of accepted: {count_accept/i}")
                 print(f"WC target is {self.target_wc}")
                 print(f"Current WC is {wc}")
@@ -244,7 +243,7 @@ class rMC:
         print(f"Energy is {wc_energy}")
         print(f"Percent error {percent_diff}")
 
-        self.save_ovito_snapshot(new_atom_types=atom_types,save_file_name=save_file_name)
+        self.save_ovito_snapshot(new_atom_types=atom_types, save_file_name=save_file_name)
 
 
 if __name__ == "__main__":
@@ -253,8 +252,8 @@ if __name__ == "__main__":
             "/home/ksheriff/PAPERS/first_paper/03_mtp/data/eca_id_temperature/300K/wc_3x3.npy"
         ),
     )
-    # rmc.set_data_from_dump("fcc_random.dump")
-    rmc.set_data_from_dump("/home/ksheriff/PAPERS/first_paper/03_mtp/data/dumps/dumps_rss_mtp_mc/RSS_relaxation_20_1_600K.dump")
+    rmc.set_data_from_dump("fcc_random.dump")
+    # rmc.set_data_from_dump("/home/ksheriff/PAPERS/first_paper/03_mtp/data/dumps/dumps_rss_mtp_mc/RSS_relaxation_20_1_600K.dump")
 
     # data = rmc.data_from_ase(
     #     crystal_structure="fcc",
