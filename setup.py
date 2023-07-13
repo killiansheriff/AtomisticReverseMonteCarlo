@@ -6,8 +6,8 @@ setup(
     author="Killian Sheriff",
     author_email="ksheriff@mit.edu",
     description="Reverse Monte Carlo",
-    url="https://github.com/killiansheriff/rmc",
-    packages=["rmc"],
+    url="https://github.com/killiansheriff/rMC",
+    # packages=["rMC"],
     install_requires=[],
     classifiers=[],
 )
