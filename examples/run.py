@@ -14,5 +14,5 @@ run(
         "nodes": "1",
 
     },
-    code=f'date \n source activate test \n python rmc_fcc.py  \n date ',
+    code=f'date \n source activate test \n python -u rmc_fcc.py  \n date ',
 )

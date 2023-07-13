@@ -97,9 +97,9 @@ class rMC:
             alpha[a, b] = 1 - 1 / c[a] * sum_f / atom_counts[b]
         return alpha, f
 
-    def update_wc(self, i1, i2, new_atom_types, atom_types, new_f):
+    def update_wc(self, i1, i2, new_atom_types, atom_types, f):
         Nb = 12  # Define Nb as a constant variable
-
+        new_f = np.copy(f)
         # Get the neighborhood indices for i1 and i2
         neigh_index_list_i1 = self.neigh_index_list[i1]
         neigh_index_list_i2 = self.neigh_index_list[i2]
@@ -196,7 +196,7 @@ class rMC:
         percent_diff = np.ones(wc.shape) * 100
 
         i = 0
-
+        print("---------- Starting MC iteration --------------")
         while np.any(percent_diff > tol_percent_diff):
             # for i in tqdm(range(n_iter)):
             i += 1
@@ -208,7 +208,7 @@ class rMC:
 
             new_atom_types[i1], new_atom_types[i2] = atom_types[i2], atom_types[i1]
 
-            new_wc, new_f = self.update_wc(i1, i2, new_atom_types, atom_types, deepcopy(f))
+            new_wc, new_f = self.update_wc(i1, i2, new_atom_types, atom_types, f)
             # new_wc, new_f = self.get_wc(new_atom_types)
             new_wc_energy = np.sum((self.target_wc - new_wc) ** 2)
 
@@ -218,6 +218,7 @@ class rMC:
                 accept = True
             else:
                 r1 = np.random.random()
+              
                 wc_cond = min(1, np.exp(-1 / T * dE))
                 accept = r1 < wc_cond
 
@@ -231,19 +232,20 @@ class rMC:
                 percent_diff = np.abs((wc - self.target_wc) / self.target_wc) * 100
 
             if i % 1000 == 0:
+                print("\n")
                 print(f"Frac of accepted: {count_accept/i}")
                 print(f"WC target is {self.target_wc}")
                 print(f"Current WC is {wc}")
                 print(f"Energy is {wc_energy}")
                 print(f"Percent error {percent_diff}")
-
+                print("\n")
+        print("---------- Tolerence criteria reached --------------")
+        print("\n")
         print(f"Frac of accepted: {count_accept/i}")
         print(f"WC target is {self.target_wc}")
         print(f"Current WC is {wc}")
         print(f"Energy is {wc_energy}")
         print(f"Percent error {percent_diff}")
+        print("\n")
 
         self.save_ovito_snapshot(new_atom_types=atom_types, save_file_name=save_file_name)
-
-
-

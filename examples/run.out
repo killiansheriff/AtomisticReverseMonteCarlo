@@ -1,8 +1,15 @@
-Wed Jul 12 19:24:47 PDT 2023
-/cm/local/apps/slurm/var/spool/job24004574/slurm_script: line 13: activate: No such file or directory
+Wed Jul 12 20:06:06 PDT 2023
+/cm/local/apps/slurm/var/spool/job24004941/slurm_script: line 13: activate: No such file or directory
 /home/ksheriff/.conda/envs/torch_ovito_pip/lib/python3.10/site-packages/ovito/_extensions/averaging.py:2: UserWarning: Did you accidentally install the OVITO package from the PyPI repository in an Anaconda/Miniconda Python interpreter using the 'pip' command? This will likely lead to conflicts with existing libraries in the Anaconda environment, and import of the OVITO module may fail with an error related to the Qt framework. To fix this, please uninstall the ovito pip package by running 'pip uninstall -y ovito PySide6' and then install the OVITO Anaconda package provided by OVITO GmbH. Visit https://docs.ovito.org/python/introduction/installation.html for further instructions. If you would rather like to ignore this warning message, add the following code to the top of your Python script:
 
   import warnings
   warnings.filterwarnings('ignore', message='.*OVITO.*PyPI')
 
   import ovito._extensions.pyscript
+Traceback (most recent call last):
+  File "/home/ksheriff/PACKAGES/rMC/examples/rmc_fcc.py", line 16, in <module>
+    data = rmc.data_from_ase(
+  File "/home/ksheriff/PACKAGES/rMC/rMC/_src/rmc.py", line 35, in data_from_ase
+    atoms = ase.build.fcc100(symbol=elements[0], size=dimension, a=1, pbc=True)
+TypeError: fcc100() got an unexpected keyword argument 'pbc'
+Wed Jul 12 20:06:07 PDT 2023

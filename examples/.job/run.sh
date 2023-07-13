@@ -11,5 +11,5 @@
 #SBATCH --nodes=1
 date 
  source activate test 
- python rmc_fcc.py  
+ python -u rmc_fcc.py  
  date 
