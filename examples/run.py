@@ -12,7 +12,6 @@ run(
         # "partition": "shared",
         "ntasks-per-node": "1",
         "nodes": "1",
-
     },
-    code=f'date \n source activate test \n python -u main.py  \n date ',
+    code=f"date \n source activate test \n python -u main.py  \n date ",
 )

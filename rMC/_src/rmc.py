@@ -1,6 +1,3 @@
-import sys
-import time
-from copy import deepcopy
 from functools import partial
 from itertools import product
 
@@ -9,6 +6,7 @@ from ase.build import bulk
 from ovito.data import NearestNeighborFinder
 from ovito.io import export_file, import_file
 from ovito.io.ase import ase_to_ovito
+from ovito.pipeline import Pipeline, StaticSource
 
 
 class rMC:
@@ -19,46 +17,40 @@ class rMC:
         self.pipeline = import_file(dump_file)
         self.data = self.pipeline.compute()
 
-    def data_from_ase(
+    def set_data_from_ase(
         self,
         crystal_structure,
         dimension,
         concentrations,
         elements,
+        lat_params,
     ):
-        # Create the FCC lattice using ASE
-
-        elements = ["Au", "Ag", "Cu"]  # Example list of elements
-        concentrations = [1 / 2, 1 / 3, 1 - 0.5 - 1 / 3]
-
-        atoms = ase.build.fcc100(symbol=elements[0], size=dimension, a=1, pbc=True)
+        structure = bulk(elements[0], crystal_structure, **lat_params)
+        structure = structure.repeat(dimension)
 
         # Get the number of atoms in the lattice
-        num_atoms = len(atoms)
+        num_atoms = len(structure)
 
-        # Randomly select three elements to place on the lattice
+        # Random putting of elements
+        atom_types = np.zeros(num_atoms, dtype=int)
+        N_atoms = [0]
+        for i, concentration in enumerate(concentrations):
+            N = int(num_atoms * concentration)
 
-        selected_elements = np.random.choice(elements, size=3, replace=False)
+            atom_types[N_atoms[-1] : N_atoms[-1] + N] = i
+            N_atoms.append(N_atoms[-1] + N)
 
-        # Place the selected elements randomly on the lattice
-        for element in selected_elements:
-            random_index = np.random.randint(num_atoms)  # Randomly select an index
-            atoms[random_index].symbol = element
-        breakpoint()
-        data = ase_to_ovito(atoms)
-        # self.data, self.pipeline =
+        # shuffle
+        np.random.shuffle(atom_types)
+
+        structure.set_chemical_symbols(elements[atom_types])
+        self.data = ase_to_ovito(structure)
+        self.pipeline = Pipeline(source=StaticSource(data=self.data))
+
+    def set_data(self, pipeline, data):
+        self.pipeline, self.data = pipeline, data
 
     def get_swipe_index(self, atom_types):
-        """get i1, i2 so that atom types are different and that the 2 atoms shells are not shared"""
-        # is_same_atom, is_in_1nn_or_2nn = True, True
-
-        # while is_same_atom == True or is_in_1nn_or_2nn == True:
-        #     i1, i2 = np.random.choice(
-        #         self.natoms, 2, replace=True
-        #     )  # replace=False means can't choose i1 = i2, but use true ow is so slow
-
-        #     is_same_atom = atom_types[i1] == atom_types[i2]
-        #     is_in_1nn_or_2nn = bool(set(self.neigh_index_list[i1]) & set(self.neigh_index_list[i2]))
         is_same_atom = True
         while is_same_atom:
             i1, i2 = np.random.choice(
@@ -101,8 +93,16 @@ class rMC:
             alpha[a, b] = 1 - 1 / c[a] * sum_f / atom_counts[b]
         return alpha, f
 
-    def update_wc(self, i1, i2, new_atom_types, atom_types, f):
-        Nb = 12  # Define Nb as a constant variable
+    def update_wc(
+        self,
+        i1,
+        i2,
+        new_atom_types,
+        atom_types,
+        f,
+    ):
+        Nb = self.neigh_index_list.shape[1]  # Define Nb as a constant variable
+
         new_f = np.copy(f)
         # Get the neighborhood indices for i1 and i2
         neigh_index_list_i1 = self.neigh_index_list[i1]
@@ -133,6 +133,7 @@ class rMC:
         # c = atom_counts / self.natoms
         atom_counts = self.atom_counts
         c = self.c
+
         new_wc = np.zeros((self.ncomponent, self.ncomponent))
         for pair in self.pairs:
             a, b = pair
@@ -178,7 +179,6 @@ class rMC:
         i = 0
         print("---------- Starting MC iteration --------------")
         while np.any(percent_diff > tol_percent_diff):
-            # for i in tqdm(range(n_iter)):
             i += 1
             count_accept = 0
 
@@ -190,8 +190,7 @@ class rMC:
             new_atom_types[i1], new_atom_types[i2] = atom_types[i2], atom_types[i1]
 
             new_wc, new_f = self.update_wc(i1, i2, new_atom_types, atom_types, f)
-            
-            # new_wc, new_f = self.get_wc(new_atom_types)
+
             new_wc_energy = np.sum((self.target_wc - new_wc) ** 2)
 
             dE = new_wc_energy - wc_energy
