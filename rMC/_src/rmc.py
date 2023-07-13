@@ -1,4 +1,5 @@
 import sys
+import time
 from copy import deepcopy
 from functools import partial
 from itertools import product
@@ -27,8 +28,6 @@ class rMC:
     ):
         # Create the FCC lattice using ASE
 
-        import ase
-
         elements = ["Au", "Ag", "Cu"]  # Example list of elements
         concentrations = [1 / 2, 1 / 3, 1 - 0.5 - 1 / 3]
 
@@ -51,16 +50,21 @@ class rMC:
 
     def get_swipe_index(self, atom_types):
         """get i1, i2 so that atom types are different and that the 2 atoms shells are not shared"""
-        is_same_atom, is_in_1nn_or_2nn = True, True
+        # is_same_atom, is_in_1nn_or_2nn = True, True
 
-        while is_same_atom == True or is_in_1nn_or_2nn == True:
+        # while is_same_atom == True or is_in_1nn_or_2nn == True:
+        #     i1, i2 = np.random.choice(
+        #         self.natoms, 2, replace=True
+        #     )  # replace=False means can't choose i1 = i2, but use true ow is so slow
+
+        #     is_same_atom = atom_types[i1] == atom_types[i2]
+        #     is_in_1nn_or_2nn = bool(set(self.neigh_index_list[i1]) & set(self.neigh_index_list[i2]))
+        is_same_atom = True
+        while is_same_atom:
             i1, i2 = np.random.choice(
-                self.natoms, 2, replace=False
-            )  # replace=False means can't choose i1 = i2
-
+                self.natoms, 2, replace=True
+            )  # replace=False means can't choose i1 = i2, but use true ow is so slow
             is_same_atom = atom_types[i1] == atom_types[i2]
-            is_in_1nn_or_2nn = bool(set(self.neigh_index_list[i1]) & set(self.neigh_index_list[i2]))
-
         return i1, i2
 
     def get_NN(self, nneigh):
@@ -135,30 +139,6 @@ class rMC:
             new_wc[a, b] = 1 - 1 / c[a] * new_f[a, b] / atom_counts[b]
 
         return new_wc, new_f
-        # # we remove contributions from non swap center atom, add contributions from the new one:
-        # for index in [i1, i2]:
-        #     new_center_type = new_atom_types[index]
-        #     old_center_type = atom_types[index]
-
-        #     Nb = 12  # !!! change
-        #     for neigh in self.neigh_index_list[index]:
-        #         n_center = int(new_atom_types[neigh])
-        #         new_f[n_center, old_center_type] -= 1 / Nb
-        #         new_f[n_center, new_center_type] += 1 / Nb
-
-        #         new_f[old_center_type, n_center] -= 1 / Nb
-        #         new_f[new_center_type, n_center] += 1 / Nb
-
-        # atom_counts = np.bincount(atom_types)
-        # c = atom_counts / self.natoms
-
-        # new_wc = np.zeros((self.ncomponent, self.ncomponent))
-
-        # for pair in self.pairs:
-        #     a, b = pair
-        #     new_wc[a, b] = 1 - 1 / c[a] * new_f[a, b] / atom_counts[b]
-
-        # return new_wc, new_f
 
     def modify(self, frame, data, new_atom_types):
         data.particles_.create_property("Particle Type", data=new_atom_types)
@@ -201,14 +181,16 @@ class rMC:
             # for i in tqdm(range(n_iter)):
             i += 1
             count_accept = 0
+
             # Getting indexes to swap
             i1, i2 = self.get_swipe_index(atom_types)
 
-            new_atom_types = deepcopy(atom_types)
+            new_atom_types = np.copy(atom_types)
 
             new_atom_types[i1], new_atom_types[i2] = atom_types[i2], atom_types[i1]
 
             new_wc, new_f = self.update_wc(i1, i2, new_atom_types, atom_types, f)
+            
             # new_wc, new_f = self.get_wc(new_atom_types)
             new_wc_energy = np.sum((self.target_wc - new_wc) ** 2)
 
@@ -218,7 +200,7 @@ class rMC:
                 accept = True
             else:
                 r1 = np.random.random()
-              
+
                 wc_cond = min(1, np.exp(-1 / T * dE))
                 accept = r1 < wc_cond
 
@@ -231,7 +213,7 @@ class rMC:
 
                 percent_diff = np.abs((wc - self.target_wc) / self.target_wc) * 100
 
-            if i % 1000 == 0:
+            if i % 10000 == 0:
                 print("\n")
                 print(f"Frac of accepted: {count_accept/i}")
                 print(f"WC target is {self.target_wc}")
