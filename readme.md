@@ -16,7 +16,7 @@ from rMC import rMC
 rmc = rMC()
 
 # Set rMC target
-rmc.set_target_wc(wc_3x3)
+rmc.set_target_wc(wc_3x3) # 1 - pij/ca
 
 # Set data from dump
 rmc.set_data_from_dump("fcc_random.dump")
