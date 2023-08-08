@@ -7,9 +7,13 @@ from traits.api import Float, Int, List
 
 
 class AtomisticReverseMonteCarlo(ModifierInterface):
-    nneigh = Int(12, label="")
-    T = Float(1e-9, label="")
-    tol_percent_diff = List(List, value=[[1, 1, 1], [1, 1, 1], [1, 1, 1]])
+    nneigh = Int(12, label="Max number of neighbors for WC")
+    T = Float(1e-9, label="rMC temperature")
+    tol_percent_diff = List(
+        List,
+        value=[[1, 1, 1], [1, 1, 1], [1, 1, 1]],
+        label="Tolerence criteria to stop rMC (percent difference between WC params)",
+    )
     target_wc = List(
         List,
         value=[
@@ -19,7 +23,9 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
                 [-0.12794131, 0.13575045, -0.00762235],
             ]
         ],
+        label="Target WC parameters",
     )
+    save_rate = Int(100000, label="Save rate")
 
     save_file_name = "fcc_wc.dump"
 
@@ -181,7 +187,7 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
 
                 percent_diff = np.abs((wc - self.target_wc) / self.target_wc) * 100
 
-            if i % 100000 == 0:
+            if i % self.save_rate == 0:
                 print("\n")
                 # print(f"Frac of accepted: {count_accept/i}")
                 print(f"WC target: \n {self.target_wc}")

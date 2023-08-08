@@ -12,6 +12,7 @@ mod = AtomisticReverseMonteCarlo(
         [-0.12794131, 0.13575045, -0.00762235],
     ],
     tol_percent_diff=np.ones((3, 3)).tolist(),  # max percent tolerence allowed before stopping
+    save_rate=100000,
 )
 
 pipeline = import_file("fcc_random.dump")
