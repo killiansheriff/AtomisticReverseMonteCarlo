@@ -1,16 +1,13 @@
 import numpy as np
-
 from rMC import rMC
 
 if __name__ == "__main__":
     rmc = rMC()
 
     # Set rMC target
-    rmc.set_target_wc(
-        np.load(
-            "/home/ksheriff/PAPERS/first_paper/03_mtp/data/eca_id_temperature/300K/wc_3x3.npy"
-        )
-    )
+    target_wc = np.array([[0.349, -0.239, -0.112], [-0.238, 0.059, 0.18], [-0.111, 0.18, -0.068]])
+    rmc.set_target_wc(target_wc)
+
     # Set data from dump
     rmc.set_data_from_dump("fcc_random.dump")
 

@@ -16,12 +16,13 @@ from rMC import rMC
 rmc = rMC()
 
 # Set rMC target
-rmc.set_target_wc(wc_3x3) # 1 - pij/ca
+target_wc = np.array([[0.349, -0.239, -0.112], [-0.238, 0.059, 0.18], [-0.111, 0.18, -0.068]])
+rmc.set_target_wc(target_wc)
 
 # Set data from dump
 rmc.set_data_from_dump("fcc_random.dump")
 
-# Alternatively can also create intial bulk structure from ase. It will randomly place the chosen elements on the lattice, respecting the given concentrations
+# Alternatively can also create intial config from ase
 data = rmc.set_data_from_ase(
     crystal_structure="fcc",
     dimension=(10, 10, 10),
@@ -37,4 +38,5 @@ rmc.run(
     tol_percent_diff=np.ones((3, 3)) * 1,
     save_file_name="fcc_wc.dump",
 )
+
 ```

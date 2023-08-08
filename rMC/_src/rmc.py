@@ -63,9 +63,7 @@ class rMC:
         return i1, i2
 
     def get_NN(self, nneigh):
-        finder = NearestNeighborFinder(
-            nneigh, self.data
-        )  # Computes atom neighbor lists.
+        finder = NearestNeighborFinder(nneigh, self.data)  # Computes atom neighbor lists.
         neigh_index_list = finder.find_all()[0]  # for each atom its list of neight
         return neigh_index_list
 
@@ -150,9 +148,7 @@ class rMC:
         data.particles_.create_property("Particle Type", data=new_atom_types)
 
     def save_ovito_snapshot(self, new_atom_types, save_file_name):
-        self.pipeline.modifiers.append(
-            partial(self.modify, new_atom_types=new_atom_types)
-        )
+        self.pipeline.modifiers.append(partial(self.modify, new_atom_types=new_atom_types))
         cols = [
             "Particle Identifier",
             "Particle Type",
@@ -173,9 +169,7 @@ class rMC:
         assert self.pipeline is not None
 
         # Getting some atom types related properties
-        atom_types = (
-            self.data.particles["Particle Type"] - 1
-        )  # reindxing to atom type 0
+        atom_types = self.data.particles["Particle Type"] - 1  # reindxing to atom type 0
         self.ncomponent = len(np.unique(atom_types))
         self.natoms = len(atom_types)
 
@@ -225,23 +219,21 @@ class rMC:
 
                 percent_diff = np.abs((wc - self.target_wc) / self.target_wc) * 100
 
-            if i % 10000 == 0:
+            if i % 100000 == 0:
                 print("\n")
                 print(f"Frac of accepted: {count_accept/i}")
-                print(f"WC target is {self.target_wc}")
-                print(f"Current WC is {wc}")
-                print(f"Energy is {wc_energy}")
-                print(f"Percent error {percent_diff}")
+                print(f"WC target: \n {self.target_wc}")
+                print(f"Current WC: \n  {wc}")
+                # print(f"Energy is {wc_energy}")
+                print(f"Percent error:{percent_diff}")
                 print("\n")
         print("---------- Tolerence criteria reached --------------")
         print("\n")
         print(f"Frac of accepted: {count_accept/i}")
-        print(f"WC target is {self.target_wc}")
-        print(f"Current WC is {wc}")
-        print(f"Energy is {wc_energy}")
-        print(f"Percent error {percent_diff}")
+        print(f"WC target: \n {self.target_wc}")
+        print(f"Current WC: \n {wc}")
+        # print(f"Energy: {wc_energy}")
+        print(f"Percent error: \n {percent_diff}")
         print("\n")
 
-        self.save_ovito_snapshot(
-            new_atom_types=atom_types, save_file_name=save_file_name
-        )
+        self.save_ovito_snapshot(new_atom_types=atom_types, save_file_name=save_file_name)
