@@ -21,4 +21,4 @@ dependencies = [
 repository = "https://github.com/killiansheriff/AtomisticReverseMonteCarlo"
 
 [project.entry-points.'OVITO.Modifier']
-"Atomistic Reverse MonteCarlo" = "AtomisticReverseMonteCarlo:AtomisticReverseMonteCarlo"
+"Atomistic Reverse Monte Carlo" = "AtomisticReverseMonteCarlo:AtomisticReverseMonteCarlo"
