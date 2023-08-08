@@ -1,8 +1,8 @@
 # Atomistic Reverse Monte-Carlo 
-``AtomisticReverseMonteCarlo`` is a python package which allows generating bulk crystal structures with target Warren-Cowley parameters. 
+OVITO Python modifier to generate bulk crystal structures with target Warren-Cowley parameters. 
 
 ## Usage 
-Here's an example on how to use the code:
+Here's an example on how to use the code, the code can be found in ``examples/``:
 
 ```python 
 import numpy as np
@@ -56,7 +56,3 @@ If you want to install the lastest git commit, please replace ``AtomisticReverse
 
 ## Contact
 If any questions, feel free to contact me (ksheriff at mit dot edu).
-
-
-
-```
