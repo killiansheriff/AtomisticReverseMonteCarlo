@@ -90,6 +90,7 @@ class rMC:
 
             sum_f = np.sum(fA)
             f[a, b] = sum_f
+            
 
             alpha[a, b] = 1 - 1 / c[a] * sum_f / atom_counts[b]
         return alpha, f
@@ -132,6 +133,7 @@ class rMC:
             new_f[new_center_type_i2, n_center_i2[idx]] += 1
 
         new_f *= 1 / Nb
+
         # Need to be recomputed
         atom_counts = np.bincount(new_atom_types)
         c = atom_counts / self.natoms
