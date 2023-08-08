@@ -72,8 +72,6 @@ class rMC:
 
         atom_counts = np.bincount(atom_types)
         c = atom_counts / self.natoms
-        self.c = c
-        self.atom_counts = atom_counts
 
         pairs = list(product(range(self.ncomponent), repeat=2))
         self.pairs = pairs
@@ -106,7 +104,7 @@ class rMC:
     ):
         Nb = self.neigh_index_list.shape[1]  # Define Nb as a constant variable
 
-        new_f = np.copy(f)
+        new_f = np.copy(f) * Nb
         # Get the neighborhood indices for i1 and i2
         neigh_index_list_i1 = self.neigh_index_list[i1]
         neigh_index_list_i2 = self.neigh_index_list[i2]
@@ -119,25 +117,27 @@ class rMC:
 
         # Compute the contributions for i1
         n_center_i1 = new_atom_types[neigh_index_list_i1].astype(int)
-
-        new_f[n_center_i1, old_center_type_i1] -= 1 / Nb
-        new_f[n_center_i1, new_center_type_i1] += 1 / Nb
-        new_f[old_center_type_i1, n_center_i1] -= 1 / Nb
-        new_f[new_center_type_i1, n_center_i1] += 1 / Nb
-
         # Compute the contributions for i2
         n_center_i2 = new_atom_types[neigh_index_list_i2].astype(int)
-        new_f[n_center_i2, old_center_type_i2] -= 1 / Nb
-        new_f[n_center_i2, new_center_type_i2] += 1 / Nb
-        new_f[old_center_type_i2, n_center_i2] -= 1 / Nb
-        new_f[new_center_type_i2, n_center_i2] += 1 / Nb
 
-        # atom_counts = np.bincount(new_atom_types)
-        # c = atom_counts / self.natoms
-        atom_counts = self.atom_counts
-        c = self.c
+        for idx in range(len(n_center_i1)):
+            new_f[n_center_i1[idx], old_center_type_i1] -= 1
+            new_f[old_center_type_i1, n_center_i1[idx]] -= 1
+            new_f[n_center_i1[idx], new_center_type_i1] += 1
+            new_f[new_center_type_i1, n_center_i1[idx]] += 1
+
+            new_f[n_center_i2[idx], old_center_type_i2] -= 1
+            new_f[old_center_type_i2, n_center_i2[idx]] -= 1
+            new_f[n_center_i2[idx], new_center_type_i2] += 1
+            new_f[new_center_type_i2, n_center_i2[idx]] += 1
+
+        new_f *= 1 / Nb
+        # Need to be recomputed
+        atom_counts = np.bincount(new_atom_types)
+        c = atom_counts / self.natoms
 
         new_wc = np.zeros((self.ncomponent, self.ncomponent))
+
         for pair in self.pairs:
             a, b = pair
             new_wc[a, b] = 1 - 1 / c[a] * new_f[a, b] / atom_counts[b]
@@ -149,6 +149,7 @@ class rMC:
 
     def save_ovito_snapshot(self, new_atom_types, save_file_name):
         self.pipeline.modifiers.append(partial(self.modify, new_atom_types=new_atom_types))
+        data = self.pipeline.compute()
         cols = [
             "Particle Identifier",
             "Particle Type",
@@ -157,7 +158,7 @@ class rMC:
             "Position.Z",
         ]
         export_file(
-            self.pipeline,
+            data,
             save_file_name,
             "lammps/dump",
             columns=cols,
@@ -178,6 +179,7 @@ class rMC:
 
         # Getting inital wc parameters
         wc_init, f = self.get_wc(atom_types)
+
         wc = wc_init
         # Computing WC energies
         wc_energy = np.sum((self.target_wc - wc_init) ** 2)
@@ -212,6 +214,7 @@ class rMC:
 
             if accept:
                 count_accept += 1
+
                 atom_types = new_atom_types
                 wc_energy = new_wc_energy
                 wc = new_wc
@@ -221,7 +224,7 @@ class rMC:
 
             if i % 100000 == 0:
                 print("\n")
-                print(f"Frac of accepted: {count_accept/i}")
+                # print(f"Frac of accepted: {count_accept/i}")
                 print(f"WC target: \n {self.target_wc}")
                 print(f"Current WC: \n  {wc}")
                 # print(f"Energy is {wc_energy}")
@@ -229,11 +232,11 @@ class rMC:
                 print("\n")
         print("---------- Tolerence criteria reached --------------")
         print("\n")
-        print(f"Frac of accepted: {count_accept/i}")
+        # print(f"Frac of accepted: {count_accept/i}")
         print(f"WC target: \n {self.target_wc}")
         print(f"Current WC: \n {wc}")
         # print(f"Energy: {wc_energy}")
         print(f"Percent error: \n {percent_diff}")
         print("\n")
 
-        self.save_ovito_snapshot(new_atom_types=atom_types, save_file_name=save_file_name)
+        self.save_ovito_snapshot(new_atom_types=atom_types + 1, save_file_name=save_file_name)
