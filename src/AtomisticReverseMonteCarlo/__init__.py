@@ -1,23 +1,14 @@
 from itertools import product
 
 import numpy as np
-from ase.build import bulk
-from ovito.data import (
-    DataCollection,
-    DataTable,
-    ElementType,
-    NearestNeighborFinder,
-    ParticleType,
-)
-from ovito.io import export_file, import_file
-from ovito.io.ase import ase_to_ovito
-from ovito.pipeline import ModifierInterface, Pipeline, StaticSource
+from ovito.data import DataCollection, NearestNeighborFinder
+from ovito.pipeline import ModifierInterface
 from traits.api import Float, Int, List
 
 
 class AtomisticReverseMonteCarlo(ModifierInterface):
-    nneigh = Int(value=12, label="")
-    T = Float(value=1e-9, label="")
+    nneigh = Int(12, label="")
+    T = Float(1e-9, label="")
     tol_percent_diff = List(List, value=[[1, 1, 1], [1, 1, 1], [1, 1, 1]])
     target_wc = List(
         List,
