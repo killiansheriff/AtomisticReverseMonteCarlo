@@ -28,7 +28,7 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
     save_rate = Int(100000, label="Save rate")
 
     def set_target_wc(self, target_wc):
-        self.target_wc = target_wc
+        target_wc = target_wc
 
     def get_swipe_index(self, atom_types, natoms, nn_index):
         is_same_atom, is_in_1nn_or_2nn = True, True
@@ -127,7 +127,12 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
         return new_wc, new_f
 
     def modify(self, data: DataCollection, frame: int, **kwargs):
-        (nneigh, T, tol_percent_diff) = (self.nneigh, self.T, np.array(self.tol_percent_diff))
+        (nneigh, T, tol_percent_diff, target_wc) = (
+            self.nneigh,
+            self.T,
+            np.array(self.tol_percent_diff),
+            np.array(self.target_wc),
+        )
 
         # Getting some atom types related properties
         atom_types = data.particles["Particle Type"] - 1  # reindxing to atom type 0
@@ -142,7 +147,7 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
 
         wc = wc_init
         # Computing WC energies
-        wc_energy = np.sum((self.target_wc - wc_init) ** 2)
+        wc_energy = np.sum((target_wc - wc_init) ** 2)
         percent_diff = np.ones(wc.shape) * 100
 
         i = 0
@@ -162,7 +167,7 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
                 i1, i2, new_atom_types, atom_types, f, neigh_index_list, natoms, ncomponent, pairs
             )
 
-            new_wc_energy = np.sum((self.target_wc - new_wc) ** 2)
+            new_wc_energy = np.sum((target_wc - new_wc) ** 2)
 
             dE = new_wc_energy - wc_energy
 
@@ -182,27 +187,19 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
                 wc = new_wc
                 f = new_f
 
-                percent_diff = np.abs((wc - self.target_wc) / self.target_wc) * 100
+                percent_diff = np.abs((wc - target_wc) / target_wc) * 100
 
             if i % self.save_rate == 0:
-                print("\n")
-                # print(f"Frac of accepted: {count_accept/i}")
-                print(f"WC target: \n {self.target_wc}")
-                print(f"Current WC: \n  {wc}")
-                # print(f"Energy is {wc_energy}")
-                print(f"Percent error:{percent_diff}")
-                print("\n")
+                print(f"Warren-Cowley target: \n {target_wc} ")
+                print(f"Warren-Cowley current: \n {wc} ")
+                print(f"Warren-Cowley percent error: \n {percent_diff} ")
+            # Add snapshot the the pipeline as if it was a timestep to visualize the convergence?
         print("---------- Tolerence criteria reached --------------")
-        print("\n")
-        # print(f"Frac of accepted: {count_accept/i}")
-        print(f"WC target: \n {self.target_wc}")
-        print(f"Current WC: \n {wc}")
-        # print(f"Energy: {wc_energy}")
-        print(f"Percent error: \n {percent_diff}")
-        print("\n")
-
         data.particles_.create_property(
             "Particle Type",
             data=atom_types + 1,
         )
-        
+
+        data.attributes["Warren-Cowley parameters"] = wc
+        data.attributes["Target Warren-Cowley parameters"] = target_wc
+        data.attributes["Warren-Cowley percent error"] = percent_diff
