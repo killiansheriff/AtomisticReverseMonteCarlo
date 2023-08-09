@@ -56,7 +56,7 @@ For *OVITO PRO* built-in Python interpreter, please use:
 ovitos -m pip install --user AtomisticReverseMonteCarlo
 ```
 
-If you want to install the lastest git commit, please replace ``AtomisticReverseMonteCarlo`` by ``git+https://github.com/killiansheriff/Atomistic-Reverse-Monte-Carlo``.
+If you want to install the lastest git commit, please replace ``AtomisticReverseMonteCarlo`` by ``git+https://github.com/killiansheriff/AtomisticReverseMonteCarlo``.
 
 ![](media/ovito_pro_desktop.png)
 
