@@ -3,7 +3,7 @@ from itertools import product
 import numpy as np
 from ovito.data import DataCollection, NearestNeighborFinder
 from ovito.pipeline import ModifierInterface
-from traits.api import Float, Int, List, Str
+from traits.api import Float, Int, List
 
 
 class AtomisticReverseMonteCarlo(ModifierInterface):
