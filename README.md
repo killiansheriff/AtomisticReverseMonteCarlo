@@ -30,6 +30,10 @@ pipeline = import_file("fcc_random.dump")
 pipeline.modifiers.append(mod)
 data = pipeline.compute()
 
+print(f'Target Warren-Cowley parameters: \n {data.attributes["Target Warren-Cowley parameters"]}')
+print(f'Warren-Cowley parameters: \n {data.attributes["Warren-Cowley parameters"]}')
+print(f'Warren-Cowley Percent error: \n {data.attributes["Warren-Cowley percent error"]}')
+
 export_file(
     data,
     "fcc_wc.dump",
@@ -56,7 +60,7 @@ For *OVITO PRO* built-in Python interpreter, please use:
 ovitos -m pip install --user AtomisticReverseMonteCarlo
 ```
 
-If you want to install the lastest git commit, please replace ``AtomisticReverseMonteCarlo`` by ``git+https://github.com/killiansheriff/AtomisticReverseMonteCarlo``.
+If you want to install the lastest git commit, please replace ``AtomisticReverseMonteCarlo`` with ``git+https://github.com/killiansheriff/AtomisticReverseMonteCarlo``.
 
 ![](media/ovito_pro_desktop.png)
 
