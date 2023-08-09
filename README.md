@@ -1,4 +1,6 @@
 # Atomistic Reverse Monte-Carlo 
+![PyPI Version](https://img.shields.io/pypi/v/AtomisticReverseMonteCarlo.svg) ![PyPI Downloads](https://img.shields.io/pypi/dm/AtomisticReverseMonteCarlo.svg?label=PyPI%20downloads)
+
 OVITO Python modifier to generate bulk crystal structures with target Warren-Cowley parameters. 
 
 ## Usage 
@@ -67,5 +69,5 @@ If you want to install the lastest git commit, please replace ``AtomisticReverse
 ## Contact
 If any questions, feel free to contact me (ksheriff at mit dot edu).
 
-## References & citing 
+## References & Citing 
 If you use this repository in your work, please cite ``bibtex entry to follow``.
