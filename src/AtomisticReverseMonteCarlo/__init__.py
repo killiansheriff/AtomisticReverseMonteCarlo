@@ -205,3 +205,4 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
             "Particle Type",
             data=atom_types + 1,
         )
+        
