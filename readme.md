@@ -5,7 +5,6 @@ OVITO Python modifier to generate bulk crystal structures with target Warren-Cow
 Here's an example on how to use the code:
 
 ```python 
-import numpy as np
 from ovito.io import export_file, import_file
 
 from AtomisticReverseMonteCarlo import AtomisticReverseMonteCarlo
