@@ -193,7 +193,7 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
                 print(f"Warren-Cowley target: \n {target_wc} ")
                 print(f"Warren-Cowley current: \n {wc} ")
                 print(f"Warren-Cowley percent error: \n {percent_diff} ")
-            # Add snapshot the the pipeline as if it was a timestep to visualize the convergence?
+                # Add snapshot the the pipeline as if it was a timestep to visualize the convergence?
         print("---------- Tolerence criteria reached --------------")
         data.particles_.create_property(
             "Particle Type",
