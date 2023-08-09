@@ -17,10 +17,6 @@ mod = AtomisticReverseMonteCarlo(
 
 pipeline = import_file("fcc_random.dump")
 pipeline.modifiers.append(mod)
-import WarrenCowleyParameters as wc#!! TO BE DELETED
-
-mod = wc.WarrenCowleyParameters(nneigh=[0, 12]) #!! TO BE DELETED
-pipeline.modifiers.append(mod) #!! TO BE DELETED
 data = pipeline.compute()
 
 export_file(
@@ -35,7 +31,3 @@ export_file(
         "Position.Z",
     ],
 )
-
-#!!! TO BE DELETED
-wc_for_shells = data.attributes["Warren-Cowley parameters"]
-print(f"1NN Warren-Cowley parameters: \n {wc_for_shells[0]}")
