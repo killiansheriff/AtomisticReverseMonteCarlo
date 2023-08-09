@@ -1,4 +1,3 @@
-import numpy as np
 from ovito.io import export_file, import_file
 
 from AtomisticReverseMonteCarlo import AtomisticReverseMonteCarlo
