@@ -30,6 +30,10 @@ pipeline = import_file("fcc_random.dump")
 pipeline.modifiers.append(mod)
 data = pipeline.compute()
 
+print(f'Target Warren-Cowley parameters: \n {data.attributes["Target Warren-Cowley parameters"]}')
+print(f'Warren-Cowley parameters: \n {data.attributes["Warren-Cowley parameters"]}')
+print(f'Warren-Cowley Percent error: \n {data.attributes["Warren-Cowley percent error"]}')
+
 export_file(
     data,
     "fcc_wc.dump",
