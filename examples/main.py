@@ -11,7 +11,11 @@ mod = AtomisticReverseMonteCarlo(
         [-0.19925471, 0.06350427, 0.13575045],
         [-0.12794131, 0.13575045, -0.00762235],
     ],
-    tol_percent_diff=np.ones((3, 3)).tolist(),  # max percent tolerence allowed before stopping
+    tol_percent_diff=[
+        [1, 1, 1],
+        [1, 1, 1],
+        [1, 1, 1],
+    ],  # max percent tolerence allowed before stopping
     save_rate=100000,
 )
 
