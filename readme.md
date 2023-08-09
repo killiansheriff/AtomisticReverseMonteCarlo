@@ -2,7 +2,7 @@
 OVITO Python modifier to generate bulk crystal structures with target Warren-Cowley parameters. 
 
 ## Usage 
-Here's an example on how to use the code:
+Here's an example on how to use the code to create the ``fcc_wc.dump`` file which has Warren-Cowley parameters that falls within a 1% difference of the targeted ones:
 
 ```python 
 from ovito.io import export_file, import_file
