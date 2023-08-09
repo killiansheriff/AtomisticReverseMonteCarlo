@@ -3,7 +3,7 @@ from itertools import product
 import numpy as np
 from ovito.data import DataCollection, NearestNeighborFinder
 from ovito.pipeline import ModifierInterface
-from traits.api import Float, Int, List
+from traits.api import Float, Int, List, Str
 
 
 class AtomisticReverseMonteCarlo(ModifierInterface):
@@ -27,18 +27,20 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
     )
     save_rate = Int(100000, label="Save rate")
 
-    save_file_name = "fcc_wc.dump"
-
     def set_target_wc(self, target_wc):
         self.target_wc = target_wc
 
-    def get_swipe_index(self, atom_types, natoms):
-        is_same_atom = True
-        while is_same_atom:
-            i1, i2 = np.random.choice(
-                natoms, 2, replace=True
-            )  # replace=False means can't choose i1 = i2, but use true ow is so slow
+    def get_swipe_index(self, atom_types, natoms, nn_index):
+        is_same_atom, is_in_1nn_or_2nn = True, True
+
+        while is_same_atom == True or is_in_1nn_or_2nn == True:
+            i1, i2 = np.random.choice(natoms, 2)
+
             is_same_atom = atom_types[i1] == atom_types[i2]
+
+            g1, g2 = nn_index[i1], nn_index[i2]
+            is_in_1nn_or_2nn = bool(set(g1) & set(g2))
+
         return i1, i2
 
     def get_NN(self, nneigh, data):
@@ -125,12 +127,7 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
         return new_wc, new_f
 
     def modify(self, data: DataCollection, frame: int, **kwargs):
-        nneigh, T, tol_percent_diff, save_file_name = (
-            self.nneigh,
-            self.T,
-            np.array(self.tol_percent_diff),
-            self.save_file_name,
-        )
+        (nneigh, T, tol_percent_diff) = (self.nneigh, self.T, np.array(self.tol_percent_diff))
 
         # Getting some atom types related properties
         atom_types = data.particles["Particle Type"] - 1  # reindxing to atom type 0
@@ -155,7 +152,7 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
             count_accept = 0
 
             # Getting indexes to swap
-            i1, i2 = self.get_swipe_index(atom_types, natoms)
+            i1, i2 = self.get_swipe_index(atom_types, natoms, neigh_index_list)
 
             new_atom_types = np.copy(atom_types)
 
