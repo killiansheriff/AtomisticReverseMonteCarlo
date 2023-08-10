@@ -1,7 +1,7 @@
-from itertools import product
+from itertools import product, combinations_with_replacement
 
 import numpy as np
-from ovito.data import DataCollection, NearestNeighborFinder
+from ovito.data import DataCollection, NearestNeighborFinder, DataTable
 from ovito.pipeline import ModifierInterface
 from traits.api import Int, List, Range, Union
 
@@ -26,6 +26,12 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
     )
     save_rate = Int(100000, label="Save rate")
     max_iter = Union(None, Range(low=0, high=None), label="Maximum iterations")
+
+    def compute_trajectory_length(self,  data_cache: DataCollection, **kwargs):
+        try:
+            return data_cache.attributes["num_frames"]
+        except KeyError:
+            return 0
 
     def validate_input(self):
         if len(self.target_wc) != len(self.tol_percent_diff):
@@ -153,7 +159,7 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
 
         return new_wc, new_f
 
-    def modify(self, data: DataCollection, frame: int, **kwargs):
+    def modify(self, data: DataCollection, frame: int, data_cache: DataCollection, **kwargs):
         (nneigh, T, tol_percent_diff, target_wc) = (
             self.nneigh,
             self.T,
@@ -163,88 +169,143 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
         # Validate input
         self.validate_input()
 
-        # Getting some atom types related properties
-        # reindxing to atom type 0
-        atom_types = data.particles["Particle Type"] - 1
-        ncomponent = len(np.unique(atom_types))
-        natoms = len(atom_types)
+        # No cached results available
+        if "num_frames" not in data_cache.attributes:
 
-        # Getting nearest neighbors
-        neigh_index_list = self.get_NN(nneigh=nneigh, data=data)
+            # Getting some atom types related properties
+            # reindxing to atom type 0
+            atom_types = data.particles["Particle Type"] - 1
+            ncomponent = len(np.unique(atom_types))
+            natoms = len(atom_types)
 
-        # Getting inital wc parameters
-        wc_init, f, pairs = self.get_wc(
-            atom_types, neigh_index_list, ncomponent, natoms)
+            # Getting nearest neighbors
+            neigh_index_list = self.get_NN(nneigh=nneigh, data=data)
 
-        wc = wc_init
-        # Computing WC energies
-        wc_energy = np.sum((target_wc - wc_init) ** 2)
-        percent_diff = np.ones(wc.shape) * 100
+            # Getting inital wc parameters
+            wc_init, f, pairs = self.get_wc(
+                atom_types, neigh_index_list, ncomponent, natoms)
 
-        i = 0
-        print("---------- Starting MC iteration --------------")
+            wc = wc_init
+            # Computing WC energies
+            wc_energy = np.sum((target_wc - wc_init) ** 2)
+            percent_diff = np.ones(wc.shape) * 100
 
-        max_iter = self.max_iter if self.max_iter is not None else np.inf
-        iteration = 0
-        while (iteration < max_iter) and np.any(percent_diff > tol_percent_diff):
-            i += 1
-            count_accept = 0
+            i = 0
 
-            # Getting indexes to swap
-            i1, i2 = self.get_swipe_index(atom_types, natoms, neigh_index_list)
+            step_trajectory = [i]
+            wc_trajectory = [wc]
+            wc_error_trajectory = [np.abs((wc - target_wc) / target_wc) * 100]
+            pt_trajectory = [atom_types]
 
-            new_atom_types = np.copy(atom_types)
+            max_iter = self.max_iter if self.max_iter is not None else np.inf
+            iteration = 0
+            while (iteration < max_iter) and np.any(percent_diff > tol_percent_diff):
+                i += 1
+                count_accept = 0
 
-            new_atom_types[i1], new_atom_types[i2] = atom_types[i2], atom_types[i1]
+                # Getting indexes to swap
+                i1, i2 = self.get_swipe_index(
+                    atom_types, natoms, neigh_index_list)
 
-            new_wc, new_f = self.update_wc(
-                i1, i2, new_atom_types, atom_types, f, neigh_index_list, natoms, ncomponent, pairs
-            )
+                new_atom_types = np.copy(atom_types)
 
-            new_wc_energy = np.sum((target_wc - new_wc) ** 2)
+                new_atom_types[i1], new_atom_types[i2] = atom_types[i2], atom_types[i1]
 
-            dE = new_wc_energy - wc_energy
+                new_wc, new_f = self.update_wc(
+                    i1, i2, new_atom_types, atom_types, f, neigh_index_list, natoms, ncomponent, pairs
+                )
 
-            if dE < 0:
-                accept = True
-            else:
-                r1 = np.random.random()
+                new_wc_energy = np.sum((target_wc - new_wc) ** 2)
 
-                wc_cond = min(1, np.exp(-1 / T * dE))
-                accept = r1 < wc_cond
+                dE = new_wc_energy - wc_energy
 
-            if accept:
-                count_accept += 1
+                if dE < 0:
+                    accept = True
+                else:
+                    r1 = np.random.random()
 
-                atom_types = new_atom_types
-                wc_energy = new_wc_energy
-                wc = new_wc
-                f = new_f
+                    wc_cond = min(1, np.exp(-1 / T * dE))
+                    accept = r1 < wc_cond
 
-                percent_diff = np.abs((wc - target_wc) / target_wc) * 100
+                if accept:
+                    count_accept += 1
 
-            if i % self.save_rate == 0:
-                print(f"Warren-Cowley target: \n {target_wc} ")
-                print(f"Warren-Cowley current: \n {wc} ")
-                print(f"Warren-Cowley percent error: \n {percent_diff} ")
-                # Add snapshot the the pipeline as if it was a timestep to visualize the convergence?
-            iteration += 1
-            yield
+                    atom_types = new_atom_types
+                    wc_energy = new_wc_energy
+                    wc = new_wc
+                    f = new_f
 
-        if self.max_iter is not None and iteration == self.max_iter:
-            print("---------- Max iterations reached --------------")
-        else:
-            print("---------- Tolerence criteria reached --------------")
+                    percent_diff = np.abs((wc - target_wc) / target_wc) * 100
 
-        print(f"Warren-Cowley target: \n {target_wc} ")
-        print(f"Warren-Cowley current: \n {wc} ")
-        print(f"Warren-Cowley percent error: \n {percent_diff} ")
+                if i % self.save_rate == 0:
+                    step_trajectory.append(i)
+                    wc_trajectory.append(wc)
+                    wc_error_trajectory.append(percent_diff)
+                    pt_trajectory.append(atom_types)
 
-        data.particles_.create_property(
-            "Particle Type",
-            data=atom_types + 1,
-        )
+                iteration += 1
+                yield
 
-        data.attributes["Warren-Cowley parameters"] = wc
+            # Final configuration
+            step_trajectory.append(i)
+            wc_trajectory.append(wc)
+            wc_error_trajectory.append(percent_diff)
+            pt_trajectory.append(atom_types)
+
+            data_cache.attributes["step_trajectory"] = np.array(
+                step_trajectory)
+            data_cache.attributes["wc_trajectory"] = np.array(wc_trajectory)
+            data_cache.attributes["wc_error_trajectory"] = np.array(
+                wc_error_trajectory)
+            data_cache.attributes["pt_trajectory"] = np.array(pt_trajectory)
+            data_cache.attributes["num_frames"] = len(pt_trajectory)
+            self.notify_trajectory_length_changed()
+
+        # MC has run!
+        # Populate data collection from cache
+        data.particles_[
+            "Particle Type_"][...] = data_cache.attributes["pt_trajectory"][frame]+1
+        data.attributes["Warren-Cowley parameters"] = data_cache.attributes["wc_trajectory"][frame]
         data.attributes["Target Warren-Cowley parameters"] = target_wc
-        data.attributes["Warren-Cowley percent error"] = percent_diff
+        data.attributes["Warren-Cowley percent error"] = data_cache.attributes["wc_error_trajectory"][frame]
+
+        # Table output
+        # Warren-Cowley parameters
+        table = data.tables.create(
+            identifier='wc_parameters', plot_mode=DataTable.PlotMode.Line, title='Warren-Cowley parameters')
+        table.x = table.create_property(
+            'MC Step', data=data_cache.attributes["step_trajectory"])
+        pairs = list(combinations_with_replacement(
+            range(len(data_cache.attributes["wc_trajectory"][0])), 2))
+        output = np.empty((data_cache.attributes["num_frames"], len(pairs)))
+        for i, (j, k) in enumerate(pairs):
+            output[:, i] = data_cache.attributes["wc_trajectory"][:, j, k]
+        table.y = table.create_property(
+            'WC ij', data=output, components=[f'{i+1}-{j+1}' for i, j in pairs])
+
+        # Table output
+        # Warren-Cowley percentage error
+        table = data.tables.create(
+            identifier='wc_error', plot_mode=DataTable.PlotMode.Line, title='Warren-Cowley percentage error')
+        table.x = table.create_property(
+            'MC Step', data=data_cache.attributes["step_trajectory"])
+        pairs = list(combinations_with_replacement(
+            range(len(data_cache.attributes["wc_error_trajectory"][0])), 2))
+        for i, (j, k) in enumerate(pairs):
+            output[:, i] = data_cache.attributes["wc_error_trajectory"][:, j, k]
+        table.y = table.create_property(
+            'WC ij error', data=output, components=[f'{i+1}-{j+1}' for i, j in pairs])
+
+        # Table output
+        # Log Warren-Cowley percentage error
+        table = data.tables.create(
+            identifier='log_wc_error', plot_mode=DataTable.PlotMode.Line, title='Log Warren-Cowley percentage error')
+        table.x = table.create_property(
+            'MC Step', data=data_cache.attributes["step_trajectory"])
+        pairs = list(combinations_with_replacement(
+            range(len(data_cache.attributes["wc_error_trajectory"][0])), 2))
+        for i, (j, k) in enumerate(pairs):
+            output[:, i] = np.log(
+                data_cache.attributes["wc_error_trajectory"][:, j, k])
+        table.y = table.create_property(
+            'Log10(WC ij error)', data=output, components=[f'{i+1}-{j+1}' for i, j in pairs])
