@@ -10,6 +10,7 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
     nneigh = Range(low=1, high=None, value=12,
                    label="Max number of neighbors for WC")
     T = Range(low=0.0, high=None, value=1e-9, label="rMC temperature")
+    seed = Union(None, Range(low=0, high=2**32-1), label="Seed")
     tol_percent_diff = List(
         List(Range(low=0.0, high=None)),
         value=[[1.0, 1.0, 1.0], [1.0, 1.0, 1.0], [1.0, 1.0, 1.0]],
@@ -72,11 +73,11 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
     def set_target_wc(self, target_wc):
         target_wc = target_wc
 
-    def get_swipe_index(self, atom_types, natoms, nn_index):
+    def get_swipe_index(self, atom_types, natoms, nn_index, rng):
         is_same_atom, is_in_1nn_or_2nn = True, True
 
         while is_same_atom == True or is_in_1nn_or_2nn == True:
-            i1, i2 = np.random.choice(natoms, 2)
+            i1, i2 = rng.choice(natoms, 2)
 
             is_same_atom = atom_types[i1] == atom_types[i2]
 
@@ -177,7 +178,7 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
         if "num_frames" not in data_cache.attributes:
             if frame != 0:
                 raise RuntimeError(
-                    f"Only static snapshots supported as input trajectory. Your pipeline contains {frame} frames")
+                    f"Only static snapshots supported as input trajectory. Please start at frame 0.")
 
         (nneigh, T, tol_percent_diff, target_wc) = (
             self.nneigh,
@@ -188,6 +189,8 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
 
         # No cached results available -> run MC
         if "num_frames" not in data_cache.attributes:
+
+            rng = np.random.default_rng(self.seed)
 
             # Getting some atom types related properties
             # reindxing to atom type 0
@@ -209,6 +212,7 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
 
             i = 0
 
+            # Add zeroth frame to cache
             step_trajectory = [i]
             wc_trajectory = [wc]
             wc_error_trajectory = [np.abs((wc - target_wc) / target_wc) * 100]
@@ -222,7 +226,7 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
 
                 # Getting indexes to swap
                 i1, i2 = self.get_swipe_index(
-                    atom_types, natoms, neigh_index_list)
+                    atom_types, natoms, neigh_index_list, rng)
 
                 new_atom_types = np.copy(atom_types)
 
@@ -239,7 +243,7 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
                 if dE < 0:
                     accept = True
                 else:
-                    r1 = np.random.random()
+                    r1 = rng.random()
 
                     wc_cond = min(1, np.exp(-1 / T * dE))
                     accept = r1 < wc_cond
@@ -264,11 +268,13 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
                 yield
 
             # Final configuration
-            step_trajectory.append(i)
-            wc_trajectory.append(wc)
-            wc_error_trajectory.append(percent_diff)
-            pt_trajectory.append(atom_types)
+            if i % self.save_rate != 0:
+                step_trajectory.append(i)
+                wc_trajectory.append(wc)
+                wc_error_trajectory.append(percent_diff)
+                pt_trajectory.append(atom_types)
 
+            # Add results to cache
             data_cache.attributes["step_trajectory"] = np.array(
                 step_trajectory)
             data_cache.attributes["wc_trajectory"] = np.array(wc_trajectory)
@@ -276,6 +282,7 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
                 wc_error_trajectory)
             data_cache.attributes["pt_trajectory"] = np.array(pt_trajectory)
             data_cache.attributes["num_frames"] = len(pt_trajectory)
+            # Refresh frame counter
             self.notify_trajectory_length_changed()
 
         # MC has run!
@@ -285,6 +292,7 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
         data.attributes["Warren-Cowley parameters"] = data_cache.attributes["wc_trajectory"][frame]
         data.attributes["Target Warren-Cowley parameters"] = target_wc
         data.attributes["Warren-Cowley percent error"] = data_cache.attributes["wc_error_trajectory"][frame]
+        data.attributes["Timestep"] = data_cache.attributes["step_trajectory"][frame]
 
         # Table output
         pairs = list(combinations_with_replacement(
