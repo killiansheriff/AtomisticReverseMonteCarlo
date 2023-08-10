@@ -15,7 +15,9 @@ mod = AtomisticReverseMonteCarlo(
         [1, 1, 1],
         [1, 1, 1],
     ],  # max percent tolerence allowed before stopping
-    save_rate=100000,
+    save_rate=1000,
+    seed=123,
+    max_iter=None,  # infinity number of iter
 )
 
 pipeline = import_file("fcc_random.dump")
