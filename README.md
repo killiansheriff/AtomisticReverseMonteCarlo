@@ -24,9 +24,9 @@ mod = AtomisticReverseMonteCarlo(
         [1, 1, 1],
         [1, 1, 1],
     ],                          
-    save_rate=1000,                                                   # save rate
+    save_rate=1000,                                                    # save rate
     seed=123,
-    max_iter=None,                                                    # infinity number of iterations
+    max_iter=None,                                                     # infinity number of iterations
 )
 
 # Load the intial snapshot 
