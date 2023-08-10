@@ -33,11 +33,15 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
         except KeyError:
             return 0
 
-    def validate_input(self):
+    def validate_input(self, num_species):
         if len(self.target_wc) != len(self.tol_percent_diff):
             raise ValueError(
                 f"Tolerance matrix and Target matrix need to be the same size, not {len(self.target_wc)} and { len(self.tol_percent_diff)}"
             )
+
+        if len(self.target_wc) != num_species:
+            raise ValueError(
+                f"Target matrix dimensions ({len(self.target_wc)}) need to match the number of species ({num_species}) in the system.")
 
         odim = len(self.tol_percent_diff)
         for i in range(odim):
@@ -56,6 +60,14 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
             for j in range(i + 1, odim):
                 if not np.isclose(self.target_wc[j][i], self.target_wc[i][j]):
                     raise ValueError(f"Target matrix needs to be symmetric.")
+
+    @staticmethod
+    def get_type_name(data, id):
+        ptype = data.particles["Particle Type"].type_by_id(id)
+        name = ptype.name
+        if name:
+            return name
+        return f"{id}"
 
     def set_target_wc(self, target_wc):
         target_wc = target_wc
@@ -160,16 +172,21 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
         return new_wc, new_f
 
     def modify(self, data: DataCollection, frame: int, data_cache: DataCollection, **kwargs):
+        # Validate input
+        self.validate_input(len(data.particles.particle_types.types))
+        if "num_frames" not in data_cache.attributes:
+            if frame != 0:
+                raise RuntimeError(
+                    f"Only static snapshots supported as input trajectory. Your pipeline contains {frame} frames")
+
         (nneigh, T, tol_percent_diff, target_wc) = (
             self.nneigh,
             self.T,
             np.array(self.tol_percent_diff),
             np.array(self.target_wc),
         )
-        # Validate input
-        self.validate_input()
 
-        # No cached results available
+        # No cached results available -> run MC
         if "num_frames" not in data_cache.attributes:
 
             # Getting some atom types related properties
@@ -270,18 +287,21 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
         data.attributes["Warren-Cowley percent error"] = data_cache.attributes["wc_error_trajectory"][frame]
 
         # Table output
+        pairs = list(combinations_with_replacement(
+            range(len(data_cache.attributes["wc_trajectory"][0])), 2))
+        labels = [
+            f'{self.get_type_name(data, i+1)}-{self.get_type_name(data, j+1)}' for i, j in pairs]
+
         # Warren-Cowley parameters
         table = data.tables.create(
             identifier='wc_parameters', plot_mode=DataTable.PlotMode.Line, title='Warren-Cowley parameters')
         table.x = table.create_property(
             'MC Step', data=data_cache.attributes["step_trajectory"])
-        pairs = list(combinations_with_replacement(
-            range(len(data_cache.attributes["wc_trajectory"][0])), 2))
         output = np.empty((data_cache.attributes["num_frames"], len(pairs)))
         for i, (j, k) in enumerate(pairs):
             output[:, i] = data_cache.attributes["wc_trajectory"][:, j, k]
         table.y = table.create_property(
-            'WC ij', data=output, components=[f'{i+1}-{j+1}' for i, j in pairs])
+            'WC ij', data=output, components=labels)
 
         # Table output
         # Warren-Cowley percentage error
@@ -294,7 +314,7 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
         for i, (j, k) in enumerate(pairs):
             output[:, i] = data_cache.attributes["wc_error_trajectory"][:, j, k]
         table.y = table.create_property(
-            'WC ij error', data=output, components=[f'{i+1}-{j+1}' for i, j in pairs])
+            'WC ij error', data=output, components=labels)
 
         # Table output
         # Log Warren-Cowley percentage error
@@ -308,4 +328,4 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
             output[:, i] = np.log(
                 data_cache.attributes["wc_error_trajectory"][:, j, k])
         table.y = table.create_property(
-            'Log10(WC ij error)', data=output, components=[f'{i+1}-{j+1}' for i, j in pairs])
+            'Log10(WC ij error)', data=output, components=labels)
