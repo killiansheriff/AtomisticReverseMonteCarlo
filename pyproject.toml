@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "AtomisticReverseMonteCarlo"
-version = "0.0.1"
+version = "0.0.2"
 description = "OVITO Python modifier to generate bulk crystal structures with target Warren-Cowley parameters."
 keywords = ["ovito", "python-modifier"]
 authors = [{name = "Killian Sheriff", email = "ksheriff@mit.edu"}]
