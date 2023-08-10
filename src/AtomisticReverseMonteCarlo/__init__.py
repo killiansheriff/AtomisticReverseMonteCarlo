@@ -3,29 +3,53 @@ from itertools import product
 import numpy as np
 from ovito.data import DataCollection, NearestNeighborFinder
 from ovito.pipeline import ModifierInterface
-from traits.api import Float, Int, List
+from traits.api import Int, List, Range, Union
 
 
 class AtomisticReverseMonteCarlo(ModifierInterface):
-    nneigh = Int(12, label="Max number of neighbors for WC")
-    T = Float(1e-9, label="rMC temperature")
+    nneigh = Range(low=1, high=None, value=12,
+                   label="Max number of neighbors for WC")
+    T = Range(low=0.0, high=None, value=1e-9, label="rMC temperature")
     tol_percent_diff = List(
-        List,
-        value=[[1, 1, 1], [1, 1, 1], [1, 1, 1]],
-        label="Tolerence criteria to stop rMC (percent difference between WC params)",
+        List(Range(low=0.0, high=None)),
+        value=[[1.0, 1.0, 1.0], [1.0, 1.0, 1.0], [1.0, 1.0, 1.0]],
+        label="Tolerence criteria to stop rMC\n(percent difference between WC params)",
     )
     target_wc = List(
-        List,
+        List(Range(low=None, high=1.0)),
         value=[
-            [
-                [0.32719603, -0.19925471, -0.12794131],
-                [-0.19925471, 0.06350427, 0.13575045],
-                [-0.12794131, 0.13575045, -0.00762235],
-            ]
+            [0.32719603, -0.19925471, -0.12794131],
+            [-0.19925471, 0.06350427, 0.13575045],
+            [-0.12794131, 0.13575045, -0.00762235],
         ],
         label="Target WC parameters",
     )
     save_rate = Int(100000, label="Save rate")
+    max_iter = Union(None, Range(low=0, high=None), label="Maximum iterations")
+
+    def validate_input(self):
+        if len(self.target_wc) != len(self.tol_percent_diff):
+            raise ValueError(
+                f"Tolerance matrix and Target matrix need to be the same size, not {len(self.target_wc)} and { len(self.tol_percent_diff)}"
+            )
+
+        odim = len(self.tol_percent_diff)
+        for i in range(odim):
+            if len(self.tol_percent_diff[i]) != odim:
+                raise ValueError(
+                    f"Tolerance matrix needs to be NxN, not {len(self.tol_percent_diff[i])}x{odim}."
+                )
+
+        for i in range(odim):
+            if len(self.target_wc[i]) != odim:
+                raise ValueError(
+                    f"Target matrix needs to be NxN, not {len(self.target_wc[i])}x{odim}."
+                )
+
+        for i in range(odim):
+            for j in range(i + 1, odim):
+                if not np.isclose(self.target_wc[j][i], self.target_wc[i][j]):
+                    raise ValueError(f"Target matrix needs to be symmetric.")
 
     def set_target_wc(self, target_wc):
         target_wc = target_wc
@@ -44,8 +68,10 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
         return i1, i2
 
     def get_NN(self, nneigh, data):
-        finder = NearestNeighborFinder(nneigh, data)  # Computes atom neighbor lists.
-        neigh_index_list = finder.find_all()[0]  # for each atom its list of neight
+        # Computes atom neighbor lists.
+        finder = NearestNeighborFinder(nneigh, data)
+        # for each atom its list of neight
+        neigh_index_list = finder.find_all()[0]
         return neigh_index_list
 
     def get_wc(
@@ -70,7 +96,8 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
             a, b = pair
             # fraction of A atoms in NN shell given some B atoms center
             fA = (
-                np.count_nonzero(neigh_atom_types[atom_types == b] == a, axis=1)
+                np.count_nonzero(
+                    neigh_atom_types[atom_types == b] == a, axis=1)
                 / neigh_atom_types.shape[1]
             )
 
@@ -133,9 +160,12 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
             np.array(self.tol_percent_diff),
             np.array(self.target_wc),
         )
+        # Validate input
+        self.validate_input()
 
         # Getting some atom types related properties
-        atom_types = data.particles["Particle Type"] - 1  # reindxing to atom type 0
+        # reindxing to atom type 0
+        atom_types = data.particles["Particle Type"] - 1
         ncomponent = len(np.unique(atom_types))
         natoms = len(atom_types)
 
@@ -143,7 +173,8 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
         neigh_index_list = self.get_NN(nneigh=nneigh, data=data)
 
         # Getting inital wc parameters
-        wc_init, f, pairs = self.get_wc(atom_types, neigh_index_list, ncomponent, natoms)
+        wc_init, f, pairs = self.get_wc(
+            atom_types, neigh_index_list, ncomponent, natoms)
 
         wc = wc_init
         # Computing WC energies
@@ -152,7 +183,10 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
 
         i = 0
         print("---------- Starting MC iteration --------------")
-        while np.any(percent_diff > tol_percent_diff):
+
+        max_iter = self.max_iter if self.max_iter is not None else np.inf
+        iteration = 0
+        while (iteration < max_iter) and np.any(percent_diff > tol_percent_diff):
             i += 1
             count_accept = 0
 
@@ -194,7 +228,18 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
                 print(f"Warren-Cowley current: \n {wc} ")
                 print(f"Warren-Cowley percent error: \n {percent_diff} ")
                 # Add snapshot the the pipeline as if it was a timestep to visualize the convergence?
-        print("---------- Tolerence criteria reached --------------")
+            iteration += 1
+            yield
+
+        if self.max_iter is not None and iteration == self.max_iter:
+            print("---------- Max iterations reached --------------")
+        else:
+            print("---------- Tolerence criteria reached --------------")
+
+        print(f"Warren-Cowley target: \n {target_wc} ")
+        print(f"Warren-Cowley current: \n {wc} ")
+        print(f"Warren-Cowley percent error: \n {percent_diff} ")
+
         data.particles_.create_property(
             "Particle Type",
             data=atom_types + 1,
