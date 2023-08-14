@@ -55,7 +55,7 @@ export_file(
 ```
 The script can be found in the ``examples`` directory.
 
-![](media/ovito.png)
+![](media/ovito_example.png)
 
 ## Installation
 For a standalone Python package or Conda environment, please use:
