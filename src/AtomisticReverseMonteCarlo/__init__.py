@@ -1,16 +1,15 @@
-from itertools import product, combinations_with_replacement
+from itertools import combinations_with_replacement, product
 
 import numpy as np
-from ovito.data import DataCollection, NearestNeighborFinder, DataTable
+from ovito.data import DataCollection, DataTable, NearestNeighborFinder
 from ovito.pipeline import ModifierInterface
 from traits.api import Int, List, Range, Union
 
 
 class AtomisticReverseMonteCarlo(ModifierInterface):
-    nneigh = Range(low=1, high=None, value=12,
-                   label="Max number of neighbors for WC")
+    nneigh = Range(low=1, high=None, value=12, label="Max number of neighbors for WC")
     T = Range(low=0.0, high=None, value=1e-9, label="rMC temperature")
-    seed = Union(None, Range(low=0, high=2**32-1), label="Seed")
+    seed = Union(None, Range(low=0, high=2**32 - 1), label="Seed")
     tol_percent_diff = List(
         List(Range(low=0.0, high=None)),
         value=[[1.0, 1.0, 1.0], [1.0, 1.0, 1.0], [1.0, 1.0, 1.0]],
@@ -28,7 +27,7 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
     save_rate = Int(100000, label="Save rate")
     max_iter = Union(None, Range(low=0, high=None), label="Maximum iterations")
 
-    def compute_trajectory_length(self,  data_cache: DataCollection, **kwargs):
+    def compute_trajectory_length(self, data_cache: DataCollection, **kwargs):
         try:
             return data_cache.attributes["num_frames"]
         except KeyError:
@@ -42,7 +41,8 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
 
         if len(self.target_wc) != num_species:
             raise ValueError(
-                f"Target matrix dimensions ({len(self.target_wc)}) need to match the number of species ({num_species}) in the system.")
+                f"Target matrix dimensions ({len(self.target_wc)}) need to match the number of species ({num_species}) in the system."
+            )
 
         odim = len(self.tol_percent_diff)
         for i in range(odim):
@@ -115,8 +115,7 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
             a, b = pair
             # fraction of A atoms in NN shell given some B atoms center
             fA = (
-                np.count_nonzero(
-                    neigh_atom_types[atom_types == b] == a, axis=1)
+                np.count_nonzero(neigh_atom_types[atom_types == b] == a, axis=1)
                 / neigh_atom_types.shape[1]
             )
 
@@ -178,7 +177,8 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
         if "num_frames" not in data_cache.attributes:
             if frame != 0:
                 raise RuntimeError(
-                    f"Only static snapshots supported as input trajectory. Please start at frame 0.")
+                    f"Only static snapshots supported as input trajectory. Please start at frame 0."
+                )
 
         (nneigh, T, tol_percent_diff, target_wc) = (
             self.nneigh,
@@ -189,7 +189,6 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
 
         # No cached results available -> run MC
         if "num_frames" not in data_cache.attributes:
-
             rng = np.random.default_rng(self.seed)
 
             # Getting some atom types related properties
@@ -202,8 +201,7 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
             neigh_index_list = self.get_NN(nneigh=nneigh, data=data)
 
             # Getting inital wc parameters
-            wc_init, f, pairs = self.get_wc(
-                atom_types, neigh_index_list, ncomponent, natoms)
+            wc_init, f, pairs = self.get_wc(atom_types, neigh_index_list, ncomponent, natoms)
 
             wc = wc_init
             # Computing WC energies
@@ -225,28 +223,29 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
                 count_accept = 0
 
                 # Getting indexes to swap
-                i1, i2 = self.get_swipe_index(
-                    atom_types, natoms, neigh_index_list, rng)
+                i1, i2 = self.get_swipe_index(atom_types, natoms, neigh_index_list, rng)
 
                 new_atom_types = np.copy(atom_types)
 
                 new_atom_types[i1], new_atom_types[i2] = atom_types[i2], atom_types[i1]
 
                 new_wc, new_f = self.update_wc(
-                    i1, i2, new_atom_types, atom_types, f, neigh_index_list, natoms, ncomponent, pairs
+                    i1,
+                    i2,
+                    new_atom_types,
+                    atom_types,
+                    f,
+                    neigh_index_list,
+                    natoms,
+                    ncomponent,
+                    pairs,
                 )
 
                 new_wc_energy = np.sum((target_wc - new_wc) ** 2)
 
                 dE = new_wc_energy - wc_energy
 
-                if dE < 0:
-                    accept = True
-                else:
-                    r1 = rng.random()
-
-                    wc_cond = min(1, np.exp(-1 / T * dE))
-                    accept = r1 < wc_cond
+                accept = True if dE < 0 else (rng.random() < min(1, np.exp(-1 / T * dE)))
 
                 if accept:
                     count_accept += 1
@@ -275,11 +274,9 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
                 pt_trajectory.append(atom_types)
 
             # Add results to cache
-            data_cache.attributes["step_trajectory"] = np.array(
-                step_trajectory)
+            data_cache.attributes["step_trajectory"] = np.array(step_trajectory)
             data_cache.attributes["wc_trajectory"] = np.array(wc_trajectory)
-            data_cache.attributes["wc_error_trajectory"] = np.array(
-                wc_error_trajectory)
+            data_cache.attributes["wc_error_trajectory"] = np.array(wc_error_trajectory)
             data_cache.attributes["pt_trajectory"] = np.array(pt_trajectory)
             data_cache.attributes["num_frames"] = len(pt_trajectory)
             # Refresh frame counter
@@ -287,53 +284,64 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
 
         # MC has run!
         # Populate data collection from cache
-        data.particles_[
-            "Particle Type_"][...] = data_cache.attributes["pt_trajectory"][frame]+1
+        data.particles_["Particle Type_"][...] = data_cache.attributes["pt_trajectory"][frame] + 1
         data.attributes["Warren-Cowley parameters"] = data_cache.attributes["wc_trajectory"][frame]
         data.attributes["Target Warren-Cowley parameters"] = target_wc
-        data.attributes["Warren-Cowley percent error"] = data_cache.attributes["wc_error_trajectory"][frame]
+        data.attributes["Warren-Cowley percent error"] = data_cache.attributes[
+            "wc_error_trajectory"
+        ][frame]
         data.attributes["Timestep"] = data_cache.attributes["step_trajectory"][frame]
 
         # Table output
-        pairs = list(combinations_with_replacement(
-            range(len(data_cache.attributes["wc_trajectory"][0])), 2))
+        pairs = list(
+            combinations_with_replacement(range(len(data_cache.attributes["wc_trajectory"][0])), 2)
+        )
         labels = [
-            f'{self.get_type_name(data, i+1)}-{self.get_type_name(data, j+1)}' for i, j in pairs]
+            f"{self.get_type_name(data, i+1)}-{self.get_type_name(data, j+1)}" for i, j in pairs
+        ]
 
         # Warren-Cowley parameters
         table = data.tables.create(
-            identifier='wc_parameters', plot_mode=DataTable.PlotMode.Line, title='Warren-Cowley parameters')
-        table.x = table.create_property(
-            'MC Step', data=data_cache.attributes["step_trajectory"])
+            identifier="wc_parameters",
+            plot_mode=DataTable.PlotMode.Line,
+            title="Warren-Cowley parameters",
+        )
+        table.x = table.create_property("MC Step", data=data_cache.attributes["step_trajectory"])
         output = np.empty((data_cache.attributes["num_frames"], len(pairs)))
         for i, (j, k) in enumerate(pairs):
             output[:, i] = data_cache.attributes["wc_trajectory"][:, j, k]
-        table.y = table.create_property(
-            'WC ij', data=output, components=labels)
+        table.y = table.create_property("WC ij", data=output, components=labels)
 
         # Table output
         # Warren-Cowley percentage error
         table = data.tables.create(
-            identifier='wc_error', plot_mode=DataTable.PlotMode.Line, title='Warren-Cowley percentage error')
-        table.x = table.create_property(
-            'MC Step', data=data_cache.attributes["step_trajectory"])
-        pairs = list(combinations_with_replacement(
-            range(len(data_cache.attributes["wc_error_trajectory"][0])), 2))
+            identifier="wc_error",
+            plot_mode=DataTable.PlotMode.Line,
+            title="Warren-Cowley percentage error",
+        )
+        table.x = table.create_property("MC Step", data=data_cache.attributes["step_trajectory"])
+        pairs = list(
+            combinations_with_replacement(
+                range(len(data_cache.attributes["wc_error_trajectory"][0])), 2
+            )
+        )
         for i, (j, k) in enumerate(pairs):
             output[:, i] = data_cache.attributes["wc_error_trajectory"][:, j, k]
-        table.y = table.create_property(
-            'WC ij error', data=output, components=labels)
+        table.y = table.create_property("WC ij error", data=output, components=labels)
 
         # Table output
         # Log Warren-Cowley percentage error
         table = data.tables.create(
-            identifier='log_wc_error', plot_mode=DataTable.PlotMode.Line, title='Log Warren-Cowley percentage error')
-        table.x = table.create_property(
-            'MC Step', data=data_cache.attributes["step_trajectory"])
-        pairs = list(combinations_with_replacement(
-            range(len(data_cache.attributes["wc_error_trajectory"][0])), 2))
+            identifier="log_wc_error",
+            plot_mode=DataTable.PlotMode.Line,
+            title="Log Warren-Cowley percentage error",
+        )
+        table.x = table.create_property("MC Step", data=data_cache.attributes["step_trajectory"])
+        pairs = list(
+            combinations_with_replacement(
+                range(len(data_cache.attributes["wc_error_trajectory"][0])), 2
+            )
+        )
         for i, (j, k) in enumerate(pairs):
-            output[:, i] = np.log(
-                data_cache.attributes["wc_error_trajectory"][:, j, k])
-        table.y = table.create_property(
-            'Log10(WC ij error)', data=output, components=labels)
+            output[:, i] = np.log(data_cache.attributes["wc_error_trajectory"][:, j, k])
+        table.y = table.create_property("Log10(WC ij error)", data=output, components=labels)
