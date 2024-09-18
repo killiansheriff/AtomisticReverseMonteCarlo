@@ -79,10 +79,13 @@ If any questions, feel free to contact me (ksheriff at mit dot edu).
 If you use this repository in your work, please cite:
 
 ```
-@article{sheriff2023quantifying,
-  title={Quantifying chemical short-range order in metallic alloys},
-  author={Sheriff, Killian and Cao, Yifan and Smidt, Tess and Freitas, Rodrigo},
-  journal={arXiv preprint arXiv:2311.01545},
-  year={2023}
+@article{sheriffquantifying2024,
+	title = {Quantifying chemical short-range order in metallic alloys},
+	doi = {10.1073/pnas.2322962121},
+	journaltitle = {Proceedings of the National Academy of Sciences},
+	author = {Sheriff, Killian and Cao, Yifan and Smidt, Tess and Freitas, Rodrigo},
+	date = {2024-06-18},
 }
 ```
+
+
