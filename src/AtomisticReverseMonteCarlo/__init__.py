@@ -57,10 +57,10 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
                     f"Target matrix needs to be NxN, not {len(self.target_wc[i])}x{odim}."
                 )
 
-        for i in range(odim):
-            for j in range(i + 1, odim):
-                if not np.isclose(self.target_wc[j][i], self.target_wc[i][j]):
-                    raise ValueError(f"Target matrix needs to be symmetric.")
+        # for i in range(odim):
+        #     for j in range(i + 1, odim):
+        #         if not np.isclose(self.target_wc[j][i], self.target_wc[i][j]):
+        #             raise ValueError(f"Target matrix needs to be symmetric.")
 
     @staticmethod
     def get_type_name(data, id):
