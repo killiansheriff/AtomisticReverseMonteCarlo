@@ -17,7 +17,7 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
         label="Tolerence criteria to stop rMC\n(percent difference between WC params)",
     )
     target_wc = List(
-        List(Range(low=None, high=1.0)),
+        List(),#List(Range(low=None, high=1.0)),
         value=[
             [0.32719603, -0.19925471, -0.12794131],
             [-0.19925471, 0.06350427, 0.13575045],
@@ -172,6 +172,9 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
 
         return new_wc, new_f
 
+    def get_energy(self, target_wc, new_wc):
+        return np.sum((target_wc - new_wc) ** 2)
+
     def modify(self, data: DataCollection, frame: int, data_cache: DataCollection, **kwargs):
         # Validate input
         self.validate_input(len(data.particles.particle_types.types))
@@ -189,7 +192,9 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
 
         # reindxing to atom type 0
         atom_types_orginal = data.particles["Particle Type"] #- 1
+        
         unique_types, atom_types = np.unique(atom_types_orginal, return_inverse=True)
+       
 
         # No cached results available -> run MC
         if "num_frames" not in data_cache.attributes:
@@ -220,7 +225,7 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
             step_trajectory = [i]
             wc_trajectory = [wc]
             wc_error_trajectory = [np.abs((wc - target_wc) / target_wc) * 100]
-            pt_trajectory = [atom_types]
+            pt_trajectory = [unique_types[atom_types]]
 
             max_iter = self.max_iter if self.max_iter is not None else np.inf
             iteration = 0
@@ -240,7 +245,8 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
                     i1, i2, new_atom_types, atom_types, f, neigh_index_list, natoms, ncomponent, pairs
                 )
 
-                new_wc_energy = np.sum((target_wc - new_wc) ** 2)
+                new_wc_energy = self.get_energy(target_wc, new_wc)
+                
 
                 dE = new_wc_energy - wc_energy
 
@@ -261,12 +267,13 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
                     f = new_f
 
                     percent_diff = np.abs((wc - target_wc) / target_wc) * 100
-
+               
                 if i % self.save_rate == 0:
                     step_trajectory.append(i)
                     wc_trajectory.append(wc)
                     wc_error_trajectory.append(percent_diff)
                     pt_trajectory.append(unique_types[atom_types])
+
 
                 iteration += 1
                 yield
@@ -277,6 +284,8 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
                 wc_trajectory.append(wc)
                 wc_error_trajectory.append(percent_diff)
                 pt_trajectory.append(unique_types[atom_types])
+                
+                
 
             # Add results to cache
             data_cache.attributes["step_trajectory"] = np.array(
@@ -288,11 +297,14 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
             data_cache.attributes["num_frames"] = len(pt_trajectory)
             # Refresh frame counter
             self.notify_trajectory_length_changed()
+        
 
         # MC has run!
+        print(f'Reloading frame {frame} from cache!') if frame!=0 else None
         # Populate data collection from cache
         data.particles_[
             "Particle Type_"][...] = data_cache.attributes["pt_trajectory"][frame]#+1
+
         data.attributes["Warren-Cowley parameters"] = data_cache.attributes["wc_trajectory"][frame]
         data.attributes["Target Warren-Cowley parameters"] = target_wc
         data.attributes["Warren-Cowley percent error"] = data_cache.attributes["wc_error_trajectory"][frame]
@@ -348,3 +360,29 @@ class AtomisticReverseMonteCarlo(ModifierInterface):
                 data_cache.attributes["wc_error_trajectory"][:, j, k])
         table.y = table.create_property(
             'Log10(WC ij error)', data=output, components=labels)
+
+
+
+# Child class 
+
+class AtomisticReverseMonteCarloTotalSumObjective(AtomisticReverseMonteCarlo): 
+    def get_energy(self, target_wc, new_wc):
+        target_wc_sum = np.sum(np.abs(target_wc))
+        target_wc_new = np.sum(np.abs(new_wc))
+
+        error =  np.abs(target_wc_sum-target_wc_new)
+        # print(error)
+        # print(error)
+        
+
+        return error
+
+class AtomisticReverseMonteCarloIncrease(AtomisticReverseMonteCarlo): 
+    def get_energy(self, target_wc, new_wc):
+        target_wc_sum = np.sum(np.abs(target_wc))
+        target_wc_new = np.sum(np.abs(new_wc))
+
+        error =  -1 if target_wc_new<target_wc_sum else 0 
+        
+
+        return error
